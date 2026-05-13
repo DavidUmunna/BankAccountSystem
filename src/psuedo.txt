@@ -1,0 +1,8 @@
+Bank Account
+start
+initialize Account resource
+initialize atomic counter
+initialize semaphores for regulation ->{
+regulate number of transfers
+}
+(make sure all fields are static)
