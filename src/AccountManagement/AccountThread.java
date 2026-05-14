@@ -24,8 +24,13 @@ public class AccountThread extends Thread {
 
                 Integer RandomAmount= BankAccount.RandomAmount(5000,7000);
                 AccountThread target=threadHash.get(entry.getKey());
-                TransferThread trasfer=new TransferThread(this,target,RandomAmount);
-                trasfer.start();
+                TransferThread transfer=new TransferThread(this,target,RandomAmount);
+                transfer.start();
+                try {
+                    transfer.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
 
             }

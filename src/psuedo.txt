@@ -1,8 +1,100 @@
-Bank Account
-start
-initialize Account resource
-initialize atomic counter
-initialize semaphores for regulation ->{
-regulate number of transfers
-}
-(make sure all fields are static)
+═══════════════════════════════════════════════════
+  BANK ACCOUNT SYSTEM — PSEUDO CODE STRUCTURE
+═══════════════════════════════════════════════════
+
+─── BankAccount ────────────────────────────────────
+  static Map<String, Integer> accounts       // account ID → balance
+  static AtomicBoolean running               // global loop flag
+  static AtomicBoolean active                // per-thread active flag
+  static final Integer accountBalance = 20000
+
+  BankAccount()                              // initialises accounts map
+  addAccount(id)                             // puts id → accountBalance
+  static addToBalance(id, amount)            // increments balance
+  static removeFromBalance(id, amount)       // decrements balance
+  static RandomAmount(min, max)              // returns random int in range
+
+─── FraudDetection  [Monitor / Transfer Gate] ──────
+  static ReentrantLock fraudLock
+  static Condition transferSlotAvailable     // tied to fraudLock
+  static int activeTransfers = 0
+  static final int maxTransfers = 3
+
+  static enterTransfers() {
+      lock()
+      while activeTransfers >= maxTransfers:
+          transferSlotAvailable.await()      // releases lock, suspends
+      activeTransfers++
+      unlock()                               // always in finally
+  }
+
+  static exitTransfers() {
+      lock()
+      activeTransfers--
+      transferSlotAvailable.signalAll()      // wake waiting threads
+      unlock()                               // always in finally
+  }
+
+─── AccountThread  [extends Thread] ────────────────
+  AtomicBoolean active                       // mirrors BankAccount.active
+  Map<String, Integer> accounts              // reference to shared map
+  static ConcurrentHashMap<String,
+         AccountThread> threadHash           // name → thread lookup
+
+  run() {
+      register self in threadHash
+      while running && active:
+          for each account entry (skip self):
+              pick random amount (5000–7000)
+              get target AccountThread from threadHash
+              create TransferThread(this, target, amount)
+              transfer.start()
+              transfer.join()                // wait before next transfer
+  }
+
+  getBalance()                               // returns own balance by name
+
+─── TransferThread  [extends Thread] ───────────────
+  AccountThread giving
+  AccountThread receiving
+  Integer transferAmount
+
+  run() {
+      while running:
+          if giving.getBalance() > transferAmount:
+              FraudDetection.enterTransfers()    // gate: max 3 concurrent
+              try:
+                  removeFromBalance(giving)      // atomic debit + credit
+                  addToBalance(receiving)
+              finally:
+                  FraudDetection.exitTransfers() // release slot, signal
+  }
+
+─── BankUI  [extends JFrame] ───────────────────────
+  List<AccountThread> accountThreads
+  List<JLabel> balanceLabels
+  JLabel statusLabel
+
+  init:
+      create 3 AccountThreads, register each in BankAccount
+      render account cards (name + live balance)
+      render transfer bar:
+          fromCombo  — dropdown of account names
+          toCombo    — dropdown of account names
+          amountField
+          transferButton
+
+  transferButton.onClick:
+      validate from ≠ to, amount > 0
+      if giving.balance >= amount:
+          FraudDetection.enterTransfers()
+          removeFromBalance(from)
+          addToBalance(to)
+          FraudDetection.exitTransfers()
+          show success status (green)
+      else:
+          show insufficient balance status (red)
+
+  Timer (500ms):
+      refresh each balance label from live account map
+

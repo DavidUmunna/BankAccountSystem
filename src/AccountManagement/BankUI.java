@@ -28,6 +28,7 @@ public class BankUI extends JFrame {
     private static final Font FONT_BTN     = new Font("Segoe UI", Font.BOLD,  13);
 
     private static final NumberFormat CURRENCY = NumberFormat.getCurrencyInstance(Locale.US);
+    JButton stopButton=new JButton("Stop");
 
     private final List<AccountThread> accountThreads = new ArrayList<>();
     private final List<JLabel>        balanceLabels  = new ArrayList<>();
@@ -205,6 +206,23 @@ public class BankUI extends JFrame {
                         setStatus("Insufficient balance in " + fromName + ".", DANGER));
                 }
             }).start();
+
+        });
+        stopButton.addActionListener(e->{
+            BankAccount.running.set(false);
+            new Thread(()->{
+                for(AccountThread account:accountThreads){
+                    try {
+                        account.join();
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                SwingUtilities.invokeLater(()->{
+                    setStatus("All transfers stopped.", TEXT_SEC);
+                    stopButton.setEnabled(false);
+                });
+            }).start();
         });
 
         // ── Balance refresh ────────────────────────────────────────────────────
@@ -213,6 +231,7 @@ public class BankUI extends JFrame {
                 balanceLabels.get(i).setText(CURRENCY.format(accountThreads.get(i).getBalance()));
             }
         });
+
         refreshTimer.start();
 
         setVisible(true);
